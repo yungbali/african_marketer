@@ -1,4 +1,4 @@
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+from anthropic import Anthropic
 from typing import Dict, List, Optional
 import json
 
@@ -13,22 +13,36 @@ class AfricanMusicAIAgent:
     def get_advice(self, prompt: str) -> Dict:
         """Get advice from Claude based on the prompt."""
         try:
-            # Create the complete message
-            full_prompt = f"{self.system_prompt}\n\nCurrent conversation:\n"
+            # Create the complete message with proper formatting
+            messages = []
+            messages.append({
+                "role": "system",
+                "content": self.system_prompt
+            })
+            
+            # Add conversation history
             for msg in self.conversation_history:
-                full_prompt += f"{msg['role']}: {msg['content']}\n"
-            full_prompt += f"\nUser: {prompt}"
+                messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+            
+            # Add current prompt
+            messages.append({
+                "role": "user",
+                "content": prompt
+            })
 
-            # Get response from Claude
-            response = self.client.completions.create(
+            # Get response from Claude using the correct API parameters
+            response = self.client.messages.create(
                 model="claude-3-opus-20240229",
+                messages=messages,
                 max_tokens=1000,
-                temperature=0.7,
-                prompt=full_prompt
+                temperature=0.7
             )
 
             # Extract the response content
-            advice = response.completion
+            advice = response.content[0].text
 
             # Update conversation history
             self.conversation_history.append({"role": "user", "content": prompt})
