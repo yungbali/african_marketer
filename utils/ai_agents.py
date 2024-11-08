@@ -1,7 +1,6 @@
-from anthropic import Anthropic
+from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 from typing import Dict, List, Optional
 import json
-import os
 
 class AfricanMusicAIAgent:
     def __init__(self, anthropic_key: str):
@@ -9,48 +8,27 @@ class AfricanMusicAIAgent:
         self.client = Anthropic(api_key=anthropic_key)
         self.conversation_history: List[Dict] = []
         self.system_prompt = """You are an expert in African music marketing and industry analysis. 
-        Your role is to provide clear, actionable advice based on current industry trends and best practices.
-        
-        Key areas of expertise:
-        - EPK (Electronic Press Kit) development
-        - Digital marketing strategies
-        - Music industry trends
-        - Artist branding
-        - Social media strategy
-        - Music distribution in African markets
-        
-        Always provide specific, actionable advice with examples when possible."""
+        Your role is to provide clear, actionable advice based on current industry trends and best practices."""
 
     def get_advice(self, prompt: str) -> Dict:
         """Get advice from Claude based on the prompt."""
         try:
-            # Create messages list with system prompt and conversation history
-            messages = [
-                {
-                    "role": "assistant",
-                    "content": self.system_prompt
-                }
-            ]
-            
-            # Add conversation history
-            messages.extend(self.conversation_history)
-            
-            # Add current prompt
-            messages.append({
-                "role": "user",
-                "content": prompt
-            })
+            # Create the complete message
+            full_prompt = f"{self.system_prompt}\n\nCurrent conversation:\n"
+            for msg in self.conversation_history:
+                full_prompt += f"{msg['role']}: {msg['content']}\n"
+            full_prompt += f"\nUser: {prompt}"
 
             # Get response from Claude
-            response = self.client.messages.create(
-                model="claude-3-opus-20240229",  # Using latest Claude 3 model
+            response = self.client.completions.create(
+                model="claude-3-opus-20240229",
                 max_tokens=1000,
                 temperature=0.7,
-                messages=messages
+                prompt=full_prompt
             )
 
             # Extract the response content
-            advice = response.content[0].text
+            advice = response.completion
 
             # Update conversation history
             self.conversation_history.append({"role": "user", "content": prompt})
