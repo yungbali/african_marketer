@@ -7,9 +7,24 @@ def init_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "ai_agent" not in st.session_state:
-        # Get API key from Streamlit secrets
-        anthropic_key = st.secrets["anthropic"]["api_key"]
         try:
+            # Try to get API key from secrets
+            anthropic_key = st.secrets.get("anthropic", {}).get("api_key")
+            if not anthropic_key:
+                st.error("""
+                ⚠️ Anthropic API key not found in secrets.
+                
+                Please add your API key in Streamlit Cloud:
+                1. Go to your app settings
+                2. Click on 'Secrets'
+                3. Add the following configuration:
+                ```toml
+                [anthropic]
+                api_key = "sk-ant-your-actual-key-here"
+                ```
+                """)
+                st.stop()
+            
             st.session_state.ai_agent = AfricanMusicAIAgent(anthropic_key)
         except Exception as e:
             st.error(f"Error initializing AI agent: {str(e)}")
