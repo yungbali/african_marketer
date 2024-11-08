@@ -13,19 +13,16 @@ class AfricanMusicAIAgent:
     def get_advice(self, prompt: str) -> Dict:
         """Get advice from Claude based on the prompt."""
         try:
-            # Create the complete message with proper formatting
+            # Create messages list (without system message)
             messages = []
-            messages.append({
-                "role": "system",
-                "content": self.system_prompt
-            })
             
             # Add conversation history
             for msg in self.conversation_history:
-                messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
+                if msg["role"] in ["user", "assistant"]:  # Only include user and assistant messages
+                    messages.append({
+                        "role": msg["role"],
+                        "content": msg["content"]
+                    })
             
             # Add current prompt
             messages.append({
@@ -37,6 +34,7 @@ class AfricanMusicAIAgent:
             response = self.client.messages.create(
                 model="claude-3-opus-20240229",
                 messages=messages,
+                system=self.system_prompt,  # System prompt goes here
                 max_tokens=1000,
                 temperature=0.7
             )
