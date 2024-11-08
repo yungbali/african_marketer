@@ -1,20 +1,14 @@
 import streamlit as st
 from utils.ai_agents import AfricanMusicAIAgent
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 def init_session_state():
     """Initialize session state variables"""
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "ai_agent" not in st.session_state:
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-        if not anthropic_key:
-            st.error("Anthropic API key not found. Please check your .env file.")
-            st.stop()
+        # Get API key from Streamlit secrets
+        anthropic_key = st.secrets["anthropic"]["api_key"]
         try:
             st.session_state.ai_agent = AfricanMusicAIAgent(anthropic_key)
         except Exception as e:
