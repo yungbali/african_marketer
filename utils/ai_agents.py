@@ -1,76 +1,99 @@
-from anthropic import Anthropic
-from typing import Dict, List, Optional
+"""Configuration settings for the application."""
+
+# AWS Configuration
+AWS_CONFIG = {
+    "region_name": "us-east-1",
+    "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "max_tokens": 1000,
+    "temperature": 0.7
+}
+
+# Logging Configuration
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        },
+    },
+    "handlers": {
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": "app.log",
+            "formatter": "standard"
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard"
+        }
+    },
+    "loggers": {
+        "": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+        }
+    }
+}
+
+# Streamlit Configuration
+STREAMLIT_CONFIG = {
+    "page_title": "African Music Marketing Assistant",
+    "page_icon": "🎵",
+    "layout": "wide",
+    "initial_sidebar_state": "expanded"
+}
+
+import boto3
 import json
+from typing import Dict, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AfricanMusicAIAgent:
-    def __init__(self, anthropic_key: str):
-        """Initialize the AI agent with the Anthropic API key."""
-        self.client = Anthropic(api_key=anthropic_key)
-        self.conversation_history: List[Dict] = []
-        self.system_prompt = """You are an expert in African music marketing and industry analysis. 
-        Your role is to provide clear, actionable advice based on current industry trends and best practices."""
+    def __init__(self):
+        self.bedrock = boto3.client('bedrock-runtime')
+        self.model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
 
-    def get_advice(self, prompt: str) -> Dict:
-        """Get advice from Claude based on the prompt."""
+    def get_advice(self, prompt, context):
         try:
-            # Create messages list (without system message)
-            messages = []
+            # Format context into string
+            context_str = "\n".join([f"{k}: {v}" for k,v in context.items()])
             
-            # Add conversation history
-            for msg in self.conversation_history:
-                if msg["role"] in ["user", "assistant"]:  # Only include user and assistant messages
-                    messages.append({
-                        "role": msg["role"],
-                        "content": msg["content"]
-                    })
-            
-            # Add current prompt
-            messages.append({
-                "role": "user",
-                "content": prompt
-            })
+            # Create the conversation messages
+            conversation = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "text": f"As an AI expert in African music marketing and promotion, please provide advice based on this context:\n\n{context_str}\n\nQuestion: {prompt}"
+                        }
+                    ]
+                }
+            ]
 
-            # Get response from Claude using the correct API parameters
-            response = self.client.messages.create(
-                model="claude-3-opus-20240229",
-                messages=messages,
-                system=self.system_prompt,  # System prompt goes here
-                max_tokens=1000,
-                temperature=0.7
+            # Use the converse API
+            response = self.bedrock.converse(
+                modelId=self.model_id,
+                messages=conversation,
+                inferenceConfig={
+                    "maxTokens": 4096,
+                    "temperature": 0.7
+                }
             )
-
-            # Extract the response content
-            advice = response.content[0].text
-
-            # Update conversation history
-            self.conversation_history.append({"role": "user", "content": prompt})
-            self.conversation_history.append({"role": "assistant", "content": advice})
-
-            # Keep conversation history manageable
-            if len(self.conversation_history) > 10:
-                self.conversation_history = self.conversation_history[-10:]
-
+            
+            # Extract response text
+            response_text = response["output"]["message"]["content"][0]["text"]
+            
             return {
                 "status": "success",
-                "advice": advice
+                "advice": response_text
             }
-
+                
         except Exception as e:
+            logger.error(f"Error getting advice: {str(e)}")
             return {
-                "status": "error",
-                "advice": f"Error: {str(e)}"
-            }
-
-    def clear_conversation(self) -> Dict:
-        """Clear the conversation history."""
-        try:
-            self.conversation_history = []
-            return {
-                "status": "success",
-                "message": "Conversation cleared successfully."
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": f"Failed to clear conversation: {str(e)}"
+                "status": "error", 
+                "advice": f"I'm currently experiencing technical difficulties: {str(e)}"
             }
